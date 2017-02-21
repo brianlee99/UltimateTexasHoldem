@@ -1,6 +1,4 @@
 import sys
-import random
-import Card
 import Deck
 
 
@@ -13,6 +11,7 @@ def main(args):
             table_min = args[i+1]
     # Start the game once initialized
     UTH(balance, table_min)
+
 
 class UTH:
 
@@ -37,9 +36,9 @@ class UTH:
     # Checks if bet is enough to cover ante, blind and 1x play
     def check_ante_is_enough(self, bet):
         if 3 * bet <= self.balance:
-            return False
-        else:
             return True
+        else:
+            return False
 
     # Checks if the bet is a multiple of 5
     def check_mult_of_5(self, bet):
@@ -67,7 +66,7 @@ class UTH:
     or equal to the table minimum (specified in self.table_min), and the player has to have *at least* 3x
     what he/she decides to bet on ante."""
     def set_ante_bets(self):
-        #TODO: What if the user has less than 3*table_minimum? Check for this
+        # TODO: What if the user has less than 3*table_minimum? Check for this
         # Prompt user for a bet
         bet_input = int(input())
 
@@ -210,8 +209,6 @@ class UTH:
             print("Your bets have been refunded.")
             self.print_balance()
 
-
-
     def fold(self):
         print("You have folded")
         # Lose your ante and your blind
@@ -220,99 +217,107 @@ class UTH:
         # If you have a trips or better, get paid on your trips
         self.folded = True
 
+    player_hand = []
+    dealer_hand = []
+    community_cards = []
+
+    def print_cards(self, cards):
+        for card in cards:
+            print(card.name)
+        print()
+
     def hand(self):
         print("Good luck!")
         # Creates a Deck object for the game
-        deck = Deck()
-        player_hand = []
-        dealer_hand = []
-        community_cards = []
+        deck = Deck.Deck()
+
         # Distribute 5, 2, and 2 cards to board, player, dealer respectively.
         for i in range(5):
             card = deck.draw()
-            community_cards.append(card)
+            self.community_cards.append(card)
         for i in range(2):
             card = deck.draw()
-            player_hand.append(card)
+            self.player_hand.append(card)
         for i in range(2):
             card = deck.draw()
-            dealer_hand.append(card)
+            self.dealer_hand.append(card)
 
         # TODO: Course of action begins. The player has the opportunity to look at his/her cards, and
-        print("Your cards are:", self.hand_to_string(player_hand))
+        print("Your cards are:")
+        self.print_cards(self.player_hand)
         print("Your options:")
-
         print("1) Bet 4x")
         print("2) Bet 3x")
         print("3) Check")
         answer = int(input())
         while answer != 1 and answer != 2 and answer != 3:
             print("Please input a valid answer")
-            print("Would you like to start the hand?")
-            print("1. Yes")
-            print("2. No")
+            print("Your options:")
+            print("1) Bet 4x")
+            print("2) Bet 3x")
+            print("3) Check")
             answer = int(input())
         if answer == 1:
-            pass
-        elif answer == 2:
-            pass
-        elif answer == 3:
-            pass
-
-
-
-
-        print("1) Bet 4x")
-        print("2) Bet 3x")
-        print("3) Check")
-        choice = int(input())
-        if choice == 1:
             self.set_play_bet(4)
             self.made_bet = True
-        elif choice == 2:
+            print("You have made a 4x bet on play.")
+        elif answer == 2:
             self.set_play_bet(3)
             self.made_bet = True
-        elif choice != 3:
-            print("Please input a valid answer")
+            print("You have made a 3x bet on play.")
+        elif answer == 3:
+            print("Checking.")
+        # elif answer == 3:
+        #     pass
 
-        print("Checking.")
         # Open the first 3 community cards
-        print("The flop is:", community_cards[0:3])
-        print("Your cards are:", player_hand)
-
+        print("The flop is:")
+        self.print_cards(self.community_cards[0:3])
+        print("Your cards are:")
+        self.print_cards(self.player_hand)
         if not self.made_bet:
             print("Your options:")
             print("1) Bet 2x")
             print("2) Check")
-            choice = int(input())
-            if choice == 1:
-                self.game_bet(2)
-            elif choice != 3:
+            answer = int(input())
+            while answer != 1 and answer != 2:
                 print("Please input a valid answer")
+                print("Your options:")
+                print("1) Bet 2x")
+                print("2) Check")
+                answer = int(input())
+            if answer == 1:
+                self.set_play_bet(2)
+                self.made_bet = True
+                print("You have made a 2x bet on play.")
+            elif answer == 2:
+                print("Checking.")
 
-            print("Checking.")
-        # Open the last 2 community cards
-        print("The river is:", community_cards)
-        print("Your cards are:", player_hand)
+        print("The river is:")
+        self.print_cards(self.community_cards)
+        print("Your cards are:")
+        self.print_cards(self.player_hand)
         if not self.made_bet:
             print("Your options:")
             print("1) Bet 1x")
             print("2) Fold")
-            if choice == 1:
-              self.game_bet(1)
-            elif choice == 2:
+            answer = int(input())
+            while answer != 1 and answer != 2:
+                print("Please input a valid answer")
+                print("Your options:")
+                print("1) Bet 1x")
+                print("2) Fold")
+                answer = int(input())
+            if answer == 1:
+                self.set_play_bet(1)
+                self.made_bet = True
+                print("You have made a 1x bet on play.")
+            elif answer == 2:
+                print("Folding")
                 self.fold()
-        # The rest of the hand only applies if you have not folded
 
         if not self.folded:
-            print("Hello")
-            # Dealer opens cards, and so on
-        else:
-            self.folded = False
-        # Start the next hand
-
-
-
+            self.showdown()
 
 if __name__ == '__main__':
     main(sys.argv)

@@ -1,5 +1,7 @@
 import Card
 import itertools
+import random
+
 
 class Deck:
     def __init__(self):
@@ -9,8 +11,8 @@ class Deck:
         prod = [card for card in itertools.product((range(2, 15)), ['C', 'D', 'H', 'S'])]
 
         for card in prod:
-            c = Card(card[0], card[1])
-            self.cards.append(Card(card[0], card[1]))
+            c = Card.Card(card[0], card[1])
+            self.cards.append(c)
 
         random.shuffle(self.cards)
 
