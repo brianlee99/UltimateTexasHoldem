@@ -1,6 +1,7 @@
 import sys
-import itertools
 import random
+import Card
+import Deck
 
 
 # For testing purpose, --table_min = 5, --balance = 1000
@@ -12,38 +13,6 @@ def main(args):
             table_min = args[i+1]
     # Start the game once initialized
     UTH(balance, table_min)
-
-
-class Card:
-    # Aces are represented as the number 14, not as 1
-    ranks = {2: '2', 3: '3', 4: '4', 5: '5', 6: '6', 7: '7', 8: '8', 9: '9', 10: '10',
-             11: 'Jack', 12: 'Queen', 13: 'King', 14: 'Ace'}
-    suits = {'S': 'Spades', 'C': 'Clubs', 'H': 'Hearts', 'D': 'Diamonds'}
-
-    def __init__(self, r: int, s: str):
-        self.rank = r
-        self.suit = s
-        self.name = Card.ranks[r] + ' of ' + Card.suits[s]
-
-
-class Deck:
-    def __init__(self):
-        self.cards = []
-
-        # Generates all possible cartesian products between A-K and CDHS
-        prod = [card for card in itertools.product((range(2, 15)), ['C', 'D', 'H', 'S'])]
-
-        for card in prod:
-            c = Card(card[0], card[1])
-            self.cards.append(Card(card[0], card[1]))
-
-        random.shuffle(self.cards)
-
-    # Pops a card from the top of the deck and returns it
-    def draw(self):
-        card = self.cards.pop(0)
-        return card
-
 
 class UTH:
 
@@ -155,68 +124,92 @@ class UTH:
         self.bet_trips = bet_input
         self.balance -= bet_input
 
+    # Print the amount bet on ante and blind
     def print_ante_bets(self):
         print("You have placed", self.bet_ante, "and", self.bet_blind, "on ante/blind.")
-        print("New balance:", self.balance)
+        self.print_balance()
 
+    # Print the amount bet on trips
     def print_trips_bet(self):
         print("You have placed", self.bet_trips, "on trips.")
-        print("New balance:", self.balance)
+        self.print_balance()
 
-    # Refund all bets (will rewrite later)
+    def print_play_bet(self):
+        print("You have placed", self.bet_play, "on play.")
+        self.print_balance()
+
+    # Print remaining balance
+    def print_balance(self):
+        print("Your balance is:", self.balance)
+
+    # Refund all bets, including trips, ante, and blind. Resets all bets, and allows
+    # user to place new values
     def refund_bets(self):
         self.balance += (self.bet_ante + self.bet_blind + self.bet_trips)
         self.bet_ante = 0
         self.bet_blind = 0
         self.bet_trips = 0
 
-    # Takes an array of Cards and converts them into a human-readable format
-    # e.g. "7 of Hearts, Ace of Spaces"
-    def hand_to_string(self, cards):
-        hand_str = ''
-        for card in cards:
-            hand_str += card.name + ', '
-        # Delete the last comma and space
-        hand_str = hand_str[:-2]
-        return hand_str
-
-
-
-    def play(self):
-        # First, place bets on ante/blind
-        print("Please place a bet on the ante/blind: ", end="")
-        self.set_ante_bets()
-        self.print_ante_bets()
-
-        # Ask user if she/he wants to bet on trips
+    def query_trips(self):
         print("Would you like to bet on trips?")
         print("1. Yes")
         print("2. No")
         answer = int(input())
+        return answer
+
+    # Multiplier is either 1, 2, 3, or 4
+    def set_play_bet(self, mult):
+        bet = mult*self.bet_ante
+        if bet <= self.balance:
+            self.bet_play = bet
+            self.balance -= bet
+            self.print_play_bet()
+            return 0  # Everything okay
+        else:  # Not enough to cover play bet
+            print("You do not have enough to cover %sx ante.", mult)
+            return -1  # Error
+
+    def play(self):
+        # First, place bets on ante/blind. Due to the way set_ante_bets() works,
+        # the play function will not continue until the user has specified a valid bet amount.
+        print("Please place a bet on the ante/blind: ", end="")
+        self.set_ante_bets()
+        self.print_ante_bets()
+
+        # Query the user until they provide either 1 or 2 as an answer
+        answer = self.query_trips()
+        while answer != 1 and answer != 2:
+            print("Please input a valid answer")
+            answer = self.query_trips()
+        # If the answer is 1, call set_trips_bet().
         if answer == 1:
             print("Please place a bet on trips: ", end="")
             self.set_trips_bet()
-        # Print out Trips bet, if placed
-        self.print_trips_bet()
+            self.print_trips_bet()
+        # If the answer is 2, do nothing
+        elif answer == 2:
+            pass
 
         # Ask user if they are ready
         print("Would you like to start the hand?")
         print("1. Yes")
         print("2. No")
         answer = int(input())
+        while answer != 1 and answer != 2:
+            print("Please input a valid answer")
+            print("Would you like to start the hand?")
+            print("1. Yes")
+            print("2. No")
+            answer = int(input())
         if answer == 1:
+            # Start the hand
             self.hand()
-        else:
+        elif answer == 2:
             # Refund bets
             self.refund_bets()
             print("Your bets have been refunded.")
-            print("New balance:", self.balance)
+            self.print_balance()
 
-    # Multiplier is either 1, 2, 3, or 4
-    # NOTE: Have not implemented care where player does not have enough money
-    def game_bet(self, multiplier):
-        self.bet_play = multiplier * self.bet_ante
-        self.balance -= self.bet_play
 
 
     def fold(self):
@@ -248,15 +241,36 @@ class UTH:
         # TODO: Course of action begins. The player has the opportunity to look at his/her cards, and
         print("Your cards are:", self.hand_to_string(player_hand))
         print("Your options:")
+
+        print("1) Bet 4x")
+        print("2) Bet 3x")
+        print("3) Check")
+        answer = int(input())
+        while answer != 1 and answer != 2 and answer != 3:
+            print("Please input a valid answer")
+            print("Would you like to start the hand?")
+            print("1. Yes")
+            print("2. No")
+            answer = int(input())
+        if answer == 1:
+            pass
+        elif answer == 2:
+            pass
+        elif answer == 3:
+            pass
+
+
+
+
         print("1) Bet 4x")
         print("2) Bet 3x")
         print("3) Check")
         choice = int(input())
         if choice == 1:
-            self.game_bet(4)
+            self.set_play_bet(4)
             self.made_bet = True
         elif choice == 2:
-            self.game_bet(3)
+            self.set_play_bet(3)
             self.made_bet = True
         elif choice != 3:
             print("Please input a valid answer")
