@@ -1,6 +1,6 @@
 import sys
 import Deck
-
+import PokerHand
 
 # For testing purpose, --table_min = 5, --balance = 1000
 def main(args):
@@ -12,11 +12,8 @@ def main(args):
     # Start the game once initialized
     UTH(balance, table_min)
 
-
 class UTH:
-
     def __init__(self, balance, table_min):
-
         # Passed in from main()
         self.balance = int(balance)
         self.table_min = int(table_min)
@@ -28,8 +25,11 @@ class UTH:
         self.bet_play = 0
         self.folded = False
         self.made_bet = False
+        self.made_trips_bet = False
+        self.player_hand = []
+        self.dealer_hand = []
+        self.community_cards = []
 
-        print("Welcome to Ultimate Texas Hold'em!")
         # Start the game, i.e. prompt user for bets
         self.play()
 
@@ -168,13 +168,113 @@ class UTH:
             print("You do not have enough to cover %sx ante.", mult)
             return -1  # Error
 
+    def fold(self):
+        print("You have folded")
+        # Lose your ante and your blind
+        self.bet_ante = 0
+        self.bet_blind = 0
+        # If you have a trips or better, get paid on your trips
+        self.folded = True
+
+    def print_cards(self, cards):
+        for card in cards:
+            print(card.name)
+        print()
+
+    # compares the player and the dealer's hands to see who wins
+    def showdown(self):
+        self.player_poker_hand = PokerHand.PokerHand(self.player_hand + self.community_cards)
+        self.dealer_poker_hand = PokerHand.PokerHand(self.dealer_hand + self.community_cards)
+        print("Player has:")
+        print(self.player_poker_hand)
+        print("Dealer has:")
+        print(self.dealer_poker_hand)
+        if self.player_poker_hand.type.value > self.dealer_poker_hand.type.value:
+            return 1
+        elif self.player_poker_hand.type.value < self.dealer_poker_hand.type.value:
+            return -1
+        else:
+            # there is more to be done here
+            # Royal Flushes are automatic pushes
+            # Flush: value1...5
+            # Trips: value1...3
+            # Two pairs: value1...3
+            # One pair: value1...4
+            # High card: value1...5
+            if self.player_poker_hand.type == PokerHand.HandType.ROYAL_FLUSH:
+                return 0
+            if self.player_poker_hand.props['value1'] > self.dealer_poker_hand.props['value1']:
+                return 1
+            elif self.player_poker_hand.props['value1'] < self.dealer_poker_hand.props['value1']:
+                return -1
+            else:
+                if self.player_poker_hand.type in [PokerHand.HandType.STRAIGHT_FLUSH,
+                                              PokerHand.HandType.STRAIGHT]:
+                    return 0
+                else:
+                    if self.player_poker_hand.props['value2'] > self.dealer_poker_hand.props['value2']:
+                        return 1
+                    elif self.player_poker_hand.props['value2'] < self.dealer_poker_hand.props['value2']:
+                        return -1
+                    else:
+                        if self.player_poker_hand.type in [PokerHand.HandType.FOUR_OF_A_KIND,
+                                                      PokerHand.HandType.FULL_HOUSE]:
+                            return 0
+                        else:
+                            if self.player_poker_hand.props['value3'] > self.dealer_poker_hand.props['value3']:
+                                return 1
+                            elif self.player_poker_hand.props['value3'] < self.dealer_poker_hand.props['value3']:
+                                return -1
+                            else:
+                                if self.player_poker_hand.type in [PokerHand.HandType.THREE_OF_A_KIND,
+                                                              PokerHand.HandType.TWO_PAIRS]:
+                                    return 0
+                                else:
+                                    if self.player_poker_hand.props['value4'] > self.dealer_poker_hand.props['value4']:
+                                        return 1
+                                    elif self.player_poker_hand.props['value4'] < self.dealer_poker_hand.props['value4']:
+                                        return -1
+                                    else:
+                                        if self.player_poker_hand.type in [PokerHand.HandType.ONE_PAIR]:
+                                            return 0
+                                        else:
+                                            if self.player_poker_hand.props['value5'] > self.dealer_poker_hand.props['value5']:
+                                                return 1
+                                            elif self.player_poker_hand.props['value5'] < self.dealer_poker_hand.props['value5']:
+                                                return -1
+                                            else:
+                                                return 0
+
+    # lose everything except trips
+    def reset_main_bets(self):
+        self.bet_ante = 0
+        self.bet_blind = 0
+        self.bet_play = 0
+
+    # get back your play bet (win/push)
+    def refund_play_bet(self):
+        self.balance += self.bet_play
+        self.bet_play = 0
+
+    def evaluate_trips(self):
+        if self.player_poker_hand.type == PokerHand.HandType.THREE_OF_A_KIND:
+            self.balance += 3 * self.bet_trips
+        elif self.player_poker_hand.type == PokerHand.HandType.STRAIGHT:
+            self.balance += 5 * self.bet_trips
+        elif self.player_poker_hand.type == PokerHand.HandType.FLUSH:
+            self.balance += 6 * self.bet_trips
+        elif self.player_poker_hand.type == PokerHand.HandType.FULL_HOUSE:
+            self.balance += 8 * self.bet_trips
+        else:
+            self.bet_trips = 0  # resets trips bet
+
     def play(self):
         # First, place bets on ante/blind. Due to the way set_ante_bets() works,
         # the play function will not continue until the user has specified a valid bet amount.
+        print("Welcome to Ultimate Texas Hold'em!")
         print("Please place a bet on the ante/blind: ", end="")
         self.set_ante_bets()
         self.print_ante_bets()
-
         # Query the user until they provide either 1 or 2 as an answer
         answer = self.query_trips()
         while answer != 1 and answer != 2:
@@ -185,6 +285,7 @@ class UTH:
             print("Please place a bet on trips: ", end="")
             self.set_trips_bet()
             self.print_trips_bet()
+            self.made_trips_bet = True
         # If the answer is 2, do nothing
         elif answer == 2:
             pass
@@ -209,29 +310,11 @@ class UTH:
             print("Your bets have been refunded.")
             self.print_balance()
 
-    def fold(self):
-        print("You have folded")
-        # Lose your ante and your blind
-        self.bet_ante = 0
-        self.bet_blind = 0
-        # If you have a trips or better, get paid on your trips
-        self.folded = True
-
-    player_hand = []
-    dealer_hand = []
-    community_cards = []
-
-    def print_cards(self, cards):
-        for card in cards:
-            print(card.name)
-        print()
-
     def hand(self):
         print("Good luck!")
         # Creates a Deck object for the game
         deck = Deck.Deck()
-
-        # Distribute 5, 2, and 2 cards to board, player, dealer respectively.
+        # Distribute 5, 2, and 2 cards to board, player, dealer respectively
         for i in range(5):
             card = deck.draw()
             self.community_cards.append(card)
@@ -242,7 +325,7 @@ class UTH:
             card = deck.draw()
             self.dealer_hand.append(card)
 
-        # TODO: Course of action begins. The player has the opportunity to look at his/her cards, and
+        # Course of play
         print("Your cards are:")
         self.print_cards(self.player_hand)
         print("Your options:")
@@ -267,15 +350,14 @@ class UTH:
             print("You have made a 3x bet on play.")
         elif answer == 3:
             print("Checking.")
-        # elif answer == 3:
-        #     pass
 
-        # Open the first 3 community cards
-        print("The flop is:")
-        self.print_cards(self.community_cards[0:3])
-        print("Your cards are:")
-        self.print_cards(self.player_hand)
+        # This code will only run if the player has not yet made a bet.
         if not self.made_bet:
+            # Open the first 3 community cards
+            print("The flop is:")
+            self.print_cards(self.community_cards[0:3])
+            print("Your cards are:")
+            self.print_cards(self.player_hand)
             print("Your options:")
             print("1) Bet 2x")
             print("2) Check")
@@ -293,11 +375,11 @@ class UTH:
             elif answer == 2:
                 print("Checking.")
 
-        print("The river is:")
-        self.print_cards(self.community_cards)
-        print("Your cards are:")
-        self.print_cards(self.player_hand)
         if not self.made_bet:
+            print("The river is:")
+            self.print_cards(self.community_cards)
+            print("Your cards are:")
+            self.print_cards(self.player_hand)
             print("Your options:")
             print("1) Bet 1x")
             print("2) Fold")
@@ -313,11 +395,40 @@ class UTH:
                 self.made_bet = True
                 print("You have made a 1x bet on play.")
             elif answer == 2:
-                print("Folding")
+                print("Folding.")
                 self.fold()
 
+        # Showdown!
         if not self.folded:
-            self.showdown()
+            outcome = self.showdown()
+            if outcome == 1:
+                print("Player wins")
+                self.balance += 2 * self.bet_ante
+                self.balance += 2 * self.bet_play
+                if self.player_poker_hand.type == PokerHand.HandType.STRAIGHT:
+                    self.balance += self.bet_blind
+                elif self.player_poker_hand.type == PokerHand.HandType.FLUSH:
+                    self.balance += self.bet_blind * 1.5
+                elif self.player_poker_hand.type == PokerHand.HandType.FULL_HOUSE:
+                    self.balance += self.bet_blind * 3
+                self.refund_play_bet()
+            elif outcome == 0:
+                print("It's a push!")
+                self.refund_play_bet()
+            else:
+                print("Dealer wins")
+                self.reset_main_bets()
+            if self.made_trips_bet:
+                self.evaluate_trips()
+            # print balance
+            self.print_balance()
+            print("Play again?")
+            # option 1) Yes, with the same bets
+            # option 2)
+
+
+
+
 
 if __name__ == '__main__':
     main(sys.argv)
