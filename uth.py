@@ -1,20 +1,40 @@
 import sys
 import Deck
 import PokerHand
+import argparse
+
+
+
 
 # For testing purpose, --table_min = 5, --balance = 1000
 def main(args):
-    for i in range(len(args)):
-        if args[i] == "--balance":
-            balance = args[i+1]
-        if args[i] == "--table_min":
-            table_min = args[i+1]
+    parser = argparse.ArgumentParser(description="Ultimate Texas Hold'em")
+    parser.add_argument('--balance', default=1000, help='Set starting balance, default $1000', type=int)
+    parser.add_argument('--table_min', default=5, help='Set table minimum, default $5', type=int)
+
+    args = parser.parse_args()
+    balance = args.balance
+    table_min = args.table_min
+
+    # bounds checking
+    if balance < table_min:
+        print("ERROR: balance is less than table minimum")
+        exit(1)
+
+    if balance <= 0:
+        print("ERROR: balance is non-positive")
+        exit(1)
+
+    if table_min < 5:
+        print("ERROR: table minimum is less than $5")
+        exit(1)
+
     # Start the game once initialized
+    print("Starting UTH with balance ${0} and table minimum ${1}".format(balance, table_min))
     UTH(balance, table_min)
 
 class UTH:
     def __init__(self, balance, table_min):
-        # Passed in from main()
         self.balance = int(balance)
         self.table_min = int(table_min)
 
